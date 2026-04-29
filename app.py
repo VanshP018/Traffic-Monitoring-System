@@ -6,9 +6,13 @@ import os
 import base64
 import tempfile
 
-from detector import Detector
-from tracker import Tracker
-import config
+try:
+    from detector import Detector
+    from tracker import Tracker
+    import config
+except Exception as e:
+    print(f"Import error: {e}")
+    raise
 
 app = Flask(__name__)
 
@@ -264,6 +268,10 @@ def generate_frames():
 def index():
     return render_template('index.html')
 
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"}), 200
+
 @app.route('/video')
 def video():
     return Response(generate_frames(),
@@ -312,4 +320,4 @@ def camera_frame():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)), debug=False)
