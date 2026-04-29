@@ -2,88 +2,425 @@
 <html>
 <head>
     <title>Traffic Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --bg:#0b1220;
+            --panel:#111827;
+            --panel-2:#0f172a;
+            --accent:#00f5d4;
+            --accent-2:#38bdf8;
+            --text:#e2e8f0;
+            --muted:#94a3b8;
+        }
+
         body {
-            background: #0f172a;
-            color: white;
-            font-family: Arial;
-            text-align: center;
+            margin:0;
+            background:radial-gradient(1200px 600px at 20% 10%, #12233b 0%, #0b1220 55%, #070d16 100%);
+            color:var(--text);
+            font-family:"Space Grotesk", sans-serif;
         }
 
-        h1 {
-            margin: 20px;
+        .header { text-align:center; padding:10px; background:#020617; }
+
+        .dashboard { display:flex; height:90vh; }
+
+        .video-container {
+            width:70%;
+            padding:10px;
         }
 
-        .container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
+        #inputBox {
+            height:100%;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            border:1px solid #1f2a3b;
+            border-radius:16px;
+            background:linear-gradient(180deg, rgba(15,23,42,0.7), rgba(11,18,32,0.95));
+            box-shadow:0 20px 40px rgba(0,0,0,0.35);
+            gap:16px;
+            padding:24px;
+            text-align:center;
+            position:relative;
+            overflow:hidden;
+        }
+
+        #inputBox::before {
+            content:"";
+            position:absolute;
+            width:260px;
+            height:260px;
+            border-radius:50%;
+            background:radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%);
+            top:-120px;
+            right:-120px;
+        }
+
+        #inputBox h2 {
+            font-size:20px;
+            margin:0;
+            letter-spacing:0.5px;
+        }
+
+        .input-subtitle {
+            font-size:13px;
+            color:var(--muted);
+            margin-top:-6px;
+        }
+
+        #dropZone {
+            width:100%;
+            max-width:320px;
+            padding:18px 16px;
+            border:1px dashed var(--accent);
+            border-radius:12px;
+            background:rgba(0, 245, 212, 0.06);
+            color:var(--accent);
+            font-weight:600;
+        }
+
+        .input-actions {
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            justify-content:center;
+        }
+
+        .btn {
+            padding:10px 16px;
+            border-radius:10px;
+            border:none;
+            font-weight:600;
+            color:#0b1220;
+            background:linear-gradient(90deg, var(--accent), var(--accent-2));
+            cursor:pointer;
+        }
+
+        .btn-secondary {
+            color:var(--text);
+            border:1px solid #1f2a3b;
+            background:#0b1220;
+        }
+
+        #fileInput {
+            color:var(--muted);
+        }
+
+        #videoStream {
+            width:100%;
+            height:100%;
+            display:none;
+        }
+
+        .right {
+            width:30%;
+            padding:10px;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
         }
 
         .card {
-            background: #1e293b;
-            padding: 20px;
-            border-radius: 12px;
-            width: 180px;
-            box-shadow: 0 0 10px rgba(0,255,200,0.2);
+            background:var(--panel);
+            padding:10px;
+            border-radius:10px;
         }
 
-        .value {
-            font-size: 28px;
-            margin-top: 10px;
-            color: #00ffcc;
+        .card-title {
+            font-size:13px;
+            font-weight:700;
+            color:#e2e8f0;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            margin-bottom:8px;
         }
 
-        img {
-            margin-top: 20px;
-            width: 70%;
-            border-radius: 10px;
-            border: 3px solid #00ffcc;
+        .stats-row {
+            display:flex;
+            gap:10px;
+        }
+
+        .stat-block {
+            flex:1;
+            background:#0b1220;
+            border:1px solid #1f2a3b;
+            border-radius:8px;
+            padding:10px;
+            text-align:center;
+        }
+
+        .stat-label {
+            font-size:12px;
+            color:#94a3b8;
+            margin-bottom:6px;
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+        }
+
+        .stat-value {
+            font-size:20px;
+            font-weight:700;
+        }
+
+        .risk-low {
+            color:#22c55e;
+        }
+
+        .risk-medium {
+            color:#f59e0b;
+        }
+
+        .risk-high {
+            color:#ef4444;
+        }
+
+        .risk-critical {
+            color:#f43f5e;
+        }
+
+        .alerts {
+            height:220px;
+            overflow-y:auto;
+            border:1px solid #1f2a3b;
+            background:#0b1220;
+        }
+
+        .alert-item {
+            padding:6px 8px;
+            border-bottom:1px solid #1f2a3b;
+            font-size:13px;
+        }
+
+        .alert-item:last-child {
+            border-bottom:none;
+        }
+
+        .stop-btn {
+            width:100%;
+            margin-top:8px;
+            padding:10px 12px;
+            border:none;
+            border-radius:8px;
+            font-weight:700;
+            color:#ffffff;
+            background:linear-gradient(90deg,#ef4444,#f97316);
+            cursor:pointer;
+        }
+
+        .stop-btn:active {
+            transform:translateY(1px);
         }
     </style>
 </head>
+
 <body>
 
-    <h1>🚦 Smart Traffic Dashboard</h1>
+<div class="header">🚦 Smart Traffic Dashboard</div>
 
-    <div class="container">
-        <div class="card">
-            <div>Total Vehicles</div>
-            <div class="value" id="count">0</div>
+<div class="dashboard">
+
+    <!-- VIDEO AREA -->
+    <div class="video-container">
+
+        <div id="inputBox">
+            <h2>Select Input</h2>
+            <div class="input-subtitle">Upload a clip or start live capture</div>
+
+            <div id="dropZone">Drag & Drop Video</div>
+
+            <input type="file" id="fileInput">
+            <div class="input-actions">
+                <button class="btn" onclick="upload()">Upload</button>
+                <button class="btn btn-secondary" onclick="startCamera()">Start Camera</button>
+            </div>
         </div>
 
-        <div class="card">
-            <div>Density</div>
-            <div class="value" id="density">LOW</div>
-        </div>
-
-        <div class="card">
-            <div>Violations</div>
-            <div class="value" id="violations">0</div>
-        </div>
-
-        <div class="card">
-            <div>Avg Speed</div>
-            <div class="value" id="speed">0 km/h</div>
-        </div>
+        <img id="videoStream" src="/video">
     </div>
 
-    <img src="/video">
+    <!-- RIGHT PANEL -->
+    <div class="right">
 
-    <script>
-        async function updateStats() {
-            const res = await fetch('/stats');
-            const data = await res.json();
+        <div class="card">
+            <div class="card-title">Count</div>
+            <div class="stats-row">
+                <div class="stat-block">
+                    <div class="stat-label">Vehicles</div>
+                    <div class="stat-value" id="count">0</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Density</div>
+                    <div class="stat-value" id="density">LOW</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Speed</div>
+                    <div class="stat-value" id="speed">0</div>
+                </div>
+            </div>
+        </div>
 
-            document.getElementById('count').innerText = data.count;
-            document.getElementById('density').innerText = data.density;
-            document.getElementById('violations').innerText = data.violations;
-            document.getElementById('speed').innerText = data.avg_speed + " km/h";
-        }
+        <div class="card">
+            <div class="card-title">Risk Analysis</div>
+            <div class="stats-row">
+                <div class="stat-block">
+                    <div class="stat-label">Risk</div>
+                    <div class="stat-value" id="risk">0</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Level</div>
+                    <div class="stat-value" id="riskLevel">LOW</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Police</div>
+                    <div class="stat-value" id="police">0</div>
+                </div>
+            </div>
+        </div>
 
-        setInterval(updateStats, 1000);
-    </script>
+        <div class="card">
+            <div class="card-title">Violation Logs</div>
+            <div class="alerts" id="alertsList"></div>
+            <button class="stop-btn" onclick="stopStream()">Stop & Reset</button>
+        </div>
+
+    </div>
+
+</div>
+
+<video id="cam" autoplay style="display:none;"></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+const dropZone = document.getElementById("dropZone");
+
+dropZone.addEventListener("dragover", e => e.preventDefault());
+
+dropZone.addEventListener("drop", async e => {
+    e.preventDefault();
+
+    const file = e.dataTransfer.files[0];
+    const fd = new FormData();
+    fd.append("video", file);
+
+    await fetch('/upload', {method:'POST', body:fd});
+    showVideo();
+});
+
+function showVideo() {
+    document.getElementById("inputBox").style.display = "none";
+    document.getElementById("videoStream").style.display = "block";
+}
+
+async function upload() {
+    const file = document.getElementById('fileInput').files[0];
+    const fd = new FormData();
+    fd.append("video", file);
+
+    await fetch('/upload', {method:'POST', body:fd});
+    showVideo();
+}
+
+async function startCamera() {
+    showVideo();
+
+    const video = document.getElementById("cam");
+    const stream = await navigator.mediaDevices.getUserMedia({video:true});
+    video.srcObject = stream;
+
+    sendFrames();
+}
+
+function sendFrames() {
+    const video = document.getElementById("cam");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    setInterval(() => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video,0,0);
+
+        const data = canvas.toDataURL("image/jpeg");
+
+        fetch('/camera_frame',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({image:data})
+        });
+
+    }, 200);
+}
+
+async function updateStats() {
+    const res = await fetch('/stats');
+    const data = await res.json();
+
+    count.innerText = data.count || 0;
+    density.innerText = data.density || "LOW";
+    speed.innerText = data.avg_speed || 0;
+
+    risk.innerText = data.risk || 0;
+    riskLevel.innerText = data.risk_level || "LOW";
+    police.innerText = data.police_needed || 0;
+
+    const level = (data.risk_level || "LOW").toUpperCase();
+    riskLevel.classList.remove("risk-low", "risk-medium", "risk-high", "risk-critical");
+    risk.classList.remove("risk-low", "risk-medium", "risk-high", "risk-critical");
+
+    if (level === "LOW") {
+        riskLevel.classList.add("risk-low");
+        risk.classList.add("risk-low");
+    } else if (level === "MEDIUM") {
+        riskLevel.classList.add("risk-medium");
+        risk.classList.add("risk-medium");
+    } else if (level === "HIGH") {
+        riskLevel.classList.add("risk-high");
+        risk.classList.add("risk-high");
+    } else {
+        riskLevel.classList.add("risk-critical");
+        risk.classList.add("risk-critical");
+    }
+}
+
+async function updateAlerts() {
+    const res = await fetch('/alerts');
+    const data = await res.json();
+
+    const container = document.getElementById('alertsList');
+    container.innerHTML = "";
+
+    data.slice().reverse().forEach(alert => {
+        const div = document.createElement('div');
+        div.className = "alert-item";
+        div.innerText = `[${alert.time}] ID ${alert.id}`;
+        container.appendChild(div);
+    });
+}
+
+async function stopStream() {
+    await fetch('/stop', { method: 'POST' });
+
+    document.getElementById("videoStream").style.display = "none";
+    document.getElementById("inputBox").style.display = "flex";
+
+    document.getElementById("fileInput").value = "";
+    document.getElementById("alertsList").innerHTML = "";
+
+    count.innerText = 0;
+    density.innerText = "LOW";
+    speed.innerText = 0;
+    risk.innerText = 0;
+    riskLevel.innerText = "LOW";
+    police.innerText = 0;
+}
+
+setInterval(updateStats, 1000);
+setInterval(updateAlerts, 1000);
+</script>
 
 </body>
 </html>
