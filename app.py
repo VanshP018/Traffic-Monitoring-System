@@ -312,10 +312,6 @@ def stop():
     reset_state()
     return "OK"
 
-@app.route('/health')
-def health():
-    return jsonify({"status": "ok", "message": "Traffic monitoring app is running"})
-
 @app.route('/debug')
 def debug():
     try:
