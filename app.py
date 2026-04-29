@@ -4,6 +4,7 @@ import time
 import numpy as np
 import os
 import base64
+import tempfile
 
 from detector import Detector
 from tracker import Tracker
@@ -32,7 +33,7 @@ MAX_ALERTS = 20
 heatmap = None
 DECAY = 0.95
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), "traffic-monitoring-uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 stats = {
@@ -299,4 +300,4 @@ def camera_frame():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)), debug=True)
