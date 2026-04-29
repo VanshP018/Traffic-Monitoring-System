@@ -13,8 +13,20 @@ import config
 app = Flask(__name__)
 
 # ---------------- INIT ----------------
-detector = Detector(config.MODEL_PATH, config.ALLOWED_CLASSES)
-tracker = Tracker()
+detector = None
+tracker = None
+
+def get_detector():
+    global detector
+    if detector is None:
+        detector = Detector(config.MODEL_PATH, config.ALLOWED_CLASSES)
+    return detector
+
+def get_tracker():
+    global tracker
+    if tracker is None:
+        tracker = Tracker()
+    return tracker
 
 video_source = None
 cap = None
@@ -122,8 +134,8 @@ def generate_frames():
         if heatmap is None:
             heatmap = np.zeros((480, config.FRAME_WIDTH), dtype=np.float32)
 
-        detections = detector.detect(frame)
-        tracks = tracker.update(detections, frame)
+        detections = get_detector().detect(frame)
+        tracks = get_tracker().update(detections, frame)
 
         current_time = time.time()
         violations = set()
