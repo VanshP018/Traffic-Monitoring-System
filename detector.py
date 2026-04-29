@@ -2,9 +2,12 @@
 
 from ultralytics import YOLO
 import numpy as np
+import os
 
 class Detector:
     def __init__(self, model_path, allowed_classes):
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
         self.model = YOLO(model_path)
         self.allowed_classes = allowed_classes
 

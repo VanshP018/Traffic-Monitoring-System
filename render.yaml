@@ -4,8 +4,12 @@ services:
     env: python
     plan: free
     pythonVersion: 3.10
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
+      - key: PIP_NO_CACHE_DIR
+        value: "false"
+      - key: PIP_DISABLE_PIP_VERSION_CHECK
+        value: "1"

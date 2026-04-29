@@ -23,7 +23,12 @@ tracker = None
 def get_detector():
     global detector
     if detector is None:
-        detector = Detector(config.MODEL_PATH, config.ALLOWED_CLASSES)
+        try:
+            detector = Detector(config.MODEL_PATH, config.ALLOWED_CLASSES)
+        except Exception as e:
+            print(f"Failed to initialize detector: {e}")
+            detector = None
+            raise
     return detector
 
 def get_tracker():
@@ -307,15 +312,23 @@ def stop():
     reset_state()
     return "OK"
 
-@app.route('/camera_frame', methods=['POST'])
-def camera_frame():
-    global video_source
-    data = request.json['image']
-    img = base64.b64decode(data.split(',')[1])
-    np_arr = np.frombuffer(img, np.uint8)
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    video_source = frame
-    return "OK"
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok", "message": "Traffic monitoring app is running"})
+
+@app.route('/debug')
+def debug():
+    try:
+        det = get_detector()
+        trk = get_tracker()
+        return jsonify({
+            "detector": "loaded" if det else "failed",
+            "tracker": "loaded" if trk else "failed",
+            "model_path": config.MODEL_PATH,
+            "model_exists": os.path.exists(config.MODEL_PATH)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
