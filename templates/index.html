@@ -355,9 +355,39 @@ function sendFrames() {
     }, 200);
 }
 
-async function updateStats() {
-    const res = await fetch('/stats');
-    const data = await res.json();
+let serviceDown = false;
+
+function setServiceDown(isDown) {
+    serviceDown = isDown;
+    if (isDown) {
+        document.title = "Traffic Dashboard (Reconnecting...)";
+    } else {
+        document.title = "Traffic Dashboard";
+    }
+}
+
+async function safeFetchJson(url) {
+    try {
+        const res = await fetch(url, { cache: "no-store" });
+
+        if (!res.ok) {
+            return { ok: false, status: res.status, data: null };
+        }
+
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+            return { ok: false, status: res.status, data: null };
+        }
+
+        const data = await res.json();
+        return { ok: true, status: res.status, data };
+    } catch (e) {
+        return { ok: false, status: 0, data: null };
+    }
+}
+
+function updateStatsUI(data) {
+    if (!data) return;
 
     count.innerText = data.count || 0;
     density.innerText = data.density || "LOW";
@@ -386,9 +416,8 @@ async function updateStats() {
     }
 }
 
-async function updateAlerts() {
-    const res = await fetch('/alerts');
-    const data = await res.json();
+function updateAlertsUI(data) {
+    if (!Array.isArray(data)) return;
 
     const container = document.getElementById('alertsList');
     container.innerHTML = "";
@@ -399,6 +428,22 @@ async function updateAlerts() {
         div.innerText = `[${alert.time}] ID ${alert.id}`;
         container.appendChild(div);
     });
+}
+
+async function refreshDashboard() {
+    const result = await safeFetchJson('/dashboard_data');
+
+    if (!result.ok || !result.data) {
+        if (!serviceDown) {
+            console.warn('Dashboard API unavailable. Status:', result.status);
+        }
+        setServiceDown(true);
+        return;
+    }
+
+    setServiceDown(false);
+    updateStatsUI(result.data.stats || {});
+    updateAlertsUI(result.data.alerts || []);
 }
 
 async function stopStream() {
@@ -418,8 +463,8 @@ async function stopStream() {
     police.innerText = 0;
 }
 
-setInterval(updateStats, 1000);
-setInterval(updateAlerts, 1000);
+setInterval(refreshDashboard, 2000);
+refreshDashboard();
 </script>
 
 </body>

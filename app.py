@@ -67,6 +67,8 @@ stats = {
     "police_needed": 0
 }
 
+TARGET_STREAM_FPS = int(os.environ.get("TARGET_STREAM_FPS", "8"))
+
 
 def reset_state():
     global video_source, cap, counted_ids, vehicle_count
@@ -126,6 +128,7 @@ def generate_frames():
     global vehicle_count, heatmap
 
     while True:
+        loop_start = time.time()
         frame = get_frame()
 
         # EMPTY STATE FRAME
@@ -136,6 +139,11 @@ def generate_frames():
 
             _, buffer = cv2.imencode('.jpg', blank)
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            if TARGET_STREAM_FPS > 0:
+                elapsed = time.time() - loop_start
+                delay = max(0, (1.0 / TARGET_STREAM_FPS) - elapsed)
+                if delay > 0:
+                    time.sleep(delay)
             continue
 
         frame = cv2.resize(frame, (config.FRAME_WIDTH, 480))
@@ -143,8 +151,19 @@ def generate_frames():
         if heatmap is None:
             heatmap = np.zeros((480, config.FRAME_WIDTH), dtype=np.float32)
 
-        detections = get_detector().detect(frame)
-        tracks = get_tracker().update(detections, frame)
+        try:
+            detections = get_detector().detect(frame)
+            tracks = get_tracker().update(detections, frame)
+        except Exception as e:
+            print(f"Frame processing error: {e}")
+            _, buffer = cv2.imencode('.jpg', frame)
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            if TARGET_STREAM_FPS > 0:
+                elapsed = time.time() - loop_start
+                delay = max(0, (1.0 / TARGET_STREAM_FPS) - elapsed)
+                if delay > 0:
+                    time.sleep(delay)
+            continue
 
         current_time = time.time()
         violations = set()
@@ -266,6 +285,11 @@ def generate_frames():
 
         _, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        if TARGET_STREAM_FPS > 0:
+            elapsed = time.time() - loop_start
+            delay = max(0, (1.0 / TARGET_STREAM_FPS) - elapsed)
+            if delay > 0:
+                time.sleep(delay)
 
 
 # ---------------- ROUTES ----------------
@@ -284,16 +308,32 @@ def video():
 
 @app.route('/stats')
 def stats_api():
-    return jsonify(stats)
+    try:
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/alerts')
 def alerts_api():
-    return jsonify(alerts)
+    try:
+        return jsonify(alerts)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/dashboard_data')
+def dashboard_data_api():
+    return jsonify({
+        "stats": stats,
+        "alerts": alerts,
+        "timestamp": int(time.time())
+    })
 
 @app.route('/upload', methods=['POST'])
 def upload():
     global video_source, cap
-    file = request.files['video']
+    file = request.files.get('video')
+    if file is None or not file.filename:
+        return jsonify({"error": "No video uploaded"}), 400
     path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(path)
     video_source = path
